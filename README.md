@@ -70,10 +70,33 @@ npm run dev
 
 ## 约定
 
-- 每个模块的前端页面在 `frontend/src/views/<模块>/index.vue`，后端接口在
-  `backend/app/routers/<模块>.py`，业务规则在 `backend/app/services/<模块>.py`。
+- 每个模块前端页面在 `frontend/src/views/<模块>/index.vue`，业务规则在
+  `backend/app/services/<模块>.py`。
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
+
+## 数据服务发布（SVC-ATTR-09）
+
+数据服务发布把归因规则、触点权重、返回字段整体冻结成「契约」，消费方读取的永远是
+当次发布的快照，归因规则升版不会改变已发布版本的响应：
+
+- 发布入口：`POST /api/delivery/publish`；消费方读取：`GET /api/delivery/{服务编号}/serve`
+  （带 `version_no` 可回放历史版本）；发布记录：`GET /api/delivery/{服务编号}/releases`。
+- 规则升版：`POST /api/attribution/{id}/upgrade` 生成新的规则版本，旧版本保持冻结；
+  要使用新规则必须再发一次服务，生成新的服务版本。
+- 同一服务编号的发布/切换/回滚按服务编号加锁串行，重复发布内容一致时幂等；
+  契约任一字段无效则整次回退，不落半成品。
+- 消费方停止、规则下线、服务下线时接口返回 `reason` + `message`，不再输出上一轮归因值。
+- 权限通过请求头 `X-Operator` / `X-Role` / `X-Biz-Line` 控制（中文值按 UTF-8 百分号编码）：
+  `analyst` 只读，`reviewer` 可登记/升版/提交评审，`release_manager` 才能发布/切换/回滚，
+  且业务归属必须匹配。
+
+回归验收：
+
+```bash
+cd backend && .venv/bin/python -m pytest tests -q
+```
+
 
 领域：数据工程
 子方向：数据分析与数据应用

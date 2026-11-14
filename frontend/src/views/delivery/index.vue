@@ -36,7 +36,7 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">{{ cell(row[column]) }}</td>
           <td class="row-actions">
             <button
               v-for="action in actions"
@@ -70,7 +70,7 @@ import { request } from '@/api/client'
 type Row = Record<string, string | number | null>
 
 const ENDPOINT = '/api/delivery'
-const columns = ["服务编号", "数据集名称", "查询参数定义", "返回字段", "速率限制", "分页最大条数", "版本号", "消费方应用"]
+const columns = ["服务编号", "数据集名称", "规则编号", "规则版本", "版本号", "返回字段", "查询参数定义", "消费方应用", "业务归属"]
 const actions = ["提交服务评审", "发布服务", "下线服务"]
 const statuses = ["草稿", "服务评审中", "已发布", "已下线"]
 const stats = [{"label": "服务版本总数", "value": 0}, {"label": "已发布服务", "value": 0}, {"label": "服务评审中", "value": 0}]
@@ -80,6 +80,12 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+
+function cell(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
 
 function resetFilters() {
   filters.value = {}
@@ -99,7 +105,7 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
     if (!response.ok) {
       throw new Error('数据服务动作未生效，请稍后重试')

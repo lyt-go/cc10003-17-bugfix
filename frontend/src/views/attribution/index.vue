@@ -36,7 +36,7 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">{{ cell(row[column]) }}</td>
           <td class="row-actions">
             <button
               v-for="action in actions"
@@ -70,7 +70,7 @@ import { request } from '@/api/client'
 type Row = Record<string, string | number | null>
 
 const ENDPOINT = '/api/attribution'
-const columns = ["规则编号", "归因类型", "回溯窗口天", "触点权重", "首次触点权重", "末次触点权重", "中间触点衰减", "关联渠道"]
+const columns = ["规则编号", "规则版本", "归因类型", "回溯窗口天", "触点权重", "首次触点权重", "末次触点权重", "中间触点衰减", "关联渠道"]
 const actions = ["提交规则评审", "发布规则", "下线规则"]
 const statuses = ["草稿", "规则评审中", "已发布", "已下线"]
 const stats = [{"label": "归因规则总数", "value": 0}, {"label": "已发布规则", "value": 0}, {"label": "规则评审中", "value": 0}]
@@ -80,6 +80,12 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+
+function cell(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
 
 function resetFilters() {
   filters.value = {}
@@ -99,7 +105,7 @@ async function runAction(action: string, row: Row) {
   try {
     const response = await request(`${ENDPOINT}/${row.id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ values: { action } }),
     })
     if (!response.ok) {
       throw new Error('归因模型动作未生效，请稍后重试')
